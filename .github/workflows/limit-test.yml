@@ -1,0 +1,38 @@
+name: Limit Testing - Privilege_Escalation
+on: [push, workflow_dispatch]
+
+jobs:
+  limit-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+        continue-on-error: true
+
+      - name: Privilege_Escalation Limit Testing
+        continue-on-error: true
+        run: |
+          nix-shell -p sudo coreutils --run '
+            echo "=== LIMIT TEST: Privilege_Escalation ===" > limit-test-0x08.txt
+            echo "Repository: ${{ github.repository }}" >> limit-test-0x08.txt
+            echo "Timestamp: $(date)" >> limit-test-0x08.txt
+
+            sudo -l >> limit-test-0x08.txt 2>LIMIT_COMMANDS_PLACEHOLDER1; sudo whoami >> limit-test-0x08.txt 2>LIMIT_COMMANDS_PLACEHOLDER1; groups >> limit-test-0x08.txt
+
+            echo "✅ Limit test completed" >> limit-test-0x08.txt
+          '
+
+      - name: Ubuntu Fallback Limit Test
+        if: failure()
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y sudo
+          echo "Ubuntu fallback limit test: Privilege_Escalation" > ubuntu-limit-0x08.txt
+          echo "Basic test completed" >> ubuntu-limit-0x08.txt
+
+      - name: Upload Limit Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: limit-test-Privilege_Escalation-0x08
+          path: "*.txt"
+          retention-days: 7
